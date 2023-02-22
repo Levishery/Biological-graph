@@ -1,0 +1,6 @@
+# resolution in nm
+16x16x40
+# segmentation filename
+/braindat/lab/liusl/flywire/block_data/biological/ffn_15_10_156-160r1500.h5 main
+# grid size
+1736x1736x130

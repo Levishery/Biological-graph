@@ -1,0 +1,6 @@
+# resolution in nm
+16x16x40
+# segmentation filename
+/data/wspolsl/biological_fafb/ffn_23_7_56-60.h5 main
+# grid size
+1736x1736x130

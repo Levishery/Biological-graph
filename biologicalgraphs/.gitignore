@@ -1,0 +1,118 @@
+# # Byte-compiled / optimized / DLL files
+# __pycache__/
+# *.py[cod]
+# *$py.class
+
+# # C extensions
+# *.so
+
+# # Distribution / packaging
+# .Python
+# build/
+# develop-eggs/
+# dist/
+# downloads/
+# eggs/
+# .eggs/
+# lib/
+# lib64/
+# parts/
+# sdist/
+# var/
+# wheels/
+# *.egg-info/
+# .installed.cfg
+# *.egg
+# MANIFEST
+# .vscode/
+
+# # PyInstaller
+# #  Usually these files are written by a python script from a template
+# #  before PyInstaller builds the exe, so as to inject date/other infos into it.
+# *.manifest
+# *.spec
+
+# # Installer logs
+# pip-log.txt
+# pip-delete-this-directory.txt
+
+# # Unit test / coverage reports
+# htmlcov/
+# .tox/
+# .coverage
+# .coverage.*
+# .cache
+# nosetests.xml
+# coverage.xml
+# *.cover
+# .hypothesis/
+# .pytest_cache/
+
+# # Translations
+# *.mo
+# *.pot
+
+
+# # PyBuilder
+# target/
+
+# # Jupyter Notebook
+# .ipynb_checkpoints
+
+# # pyenv
+# .python-version
+
+# # celery beat schedule file
+# celerybeat-schedule
+
+# # SageMath parsed files
+# *.sage.py
+
+# # Environments
+# .env
+# .venv
+# env/
+# venv/
+# ENV/
+# env.bak/
+# venv.bak/
+
+# # Spyder project settings
+# .spyderproject
+# .spyproject
+
+# # Rope project settings
+# .ropeproject
+
+# # mkdocs documentation
+# /site
+
+# # mypy
+# .mypy_cache/
+
+# algorithms/multicut.cpp
+# algorithms/lifted_multicut.cpp
+# evaluation/comparestacks.cpp
+# transforms/seg2seg.cpp
+# transforms/seg2gold.cpp
+# transforms/distance.cpp
+# skeletonization/generate_skeletons.cpp
+# graphs/biological/node_generation.cpp
+# .vscode
+
+# # remove temp files
+# *~
+
+# # do not include extra directories and files in neuronseg
+# neuronseg/cache/*
+# neuronseg/features/*
+# neuronseg/skeletons/*
+# neuronseg/results/*
+# neuronseg/segmentations/Kasthuri-test-segmentation-wos.h5
+# neuronseg/segmentations/Kasthuri-test-segmentation-wos-reduced-nodes-400nm-3x20x60x60-Kasthuri.h5
+# neuronseg/segmentations/Kasthuri-test-segmentation-wos-reduced-nodes-400nm-3x20x60x60-Kasthuri-lifted-multicut-95.h5
+# *inference.txt
+# *probabilities
+# neuronseg/meta/Kasthuri-test-segmentation-wos.meta
+# neuronseg/meta/Kasthuri-test-segmentation-wos-reduced-nodes-400nm-3x20x60x60-Kasthuri.meta
+# neuronseg/meta/Kasthuri-test-segmentation-wos-reduced-nodes-400nm-3x20x60x60-Kasthuri-lifted-multicut-95.meta
