@@ -1,4 +1,4 @@
-/braindat/lab/liusl/flywire/biologicalgraphs/biologicalgraphs
+cd /braindat/lab/liusl/flywire/biologicalgraphs/biologicalgraphs
 cd algorithms
 python setup.py build_ext --inplace
 cd ../evaluation

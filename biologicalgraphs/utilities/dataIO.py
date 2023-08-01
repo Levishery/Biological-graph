@@ -1,6 +1,7 @@
 import h5py
 import struct
-
+from tqdm import tqdm
+from skimage.transform import resize
 
 import numpy as np
 
@@ -61,6 +62,9 @@ def WriteH5File(data, filename, dataset, compression=True):
         else: hf.create_dataset(dataset, data=data)
 
 
+def ResizeSegmentation(segmentation, shape):
+    output_image = resize(segmentation, shape, order=0, mode='constant', cval=0, clip=True, preserve_range=True, anti_aliasing=False)
+    return output_image
 
 def ReadAffinityData(prefix):
     filename, dataset = meta_data.MetaData(prefix).AffinityFilename()
@@ -127,10 +131,15 @@ def relabel(seg, do_type=False):
     return mapping[seg], {'original': uid, 'relabeled': mapping[uid]}
 
 
+def get_seg_volume(seg):
+    uid = np.unique(seg)
+    bins = [i for i in range(0, len(uid)+1)]
+    x = np.histogram(seg, bins=bins)
+    return x[0]
 
-def ReadSkeletons(prefix):
+
+def ReadSkeletons(prefix, downsample_resolution=(80, 80, 80)):
     # parameters for low resolution segmentations
-    downsample_resolution = (80, 80, 80)
 
     # read in all of the skeleton points
     skeleton_filename = 'skeletons/{}/thinning-{:03d}x{:03d}x{:03d}-upsample-skeleton.pts'.format(prefix, downsample_resolution[IB_X], downsample_resolution[IB_Y], downsample_resolution[IB_Z])

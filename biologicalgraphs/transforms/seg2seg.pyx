@@ -93,12 +93,12 @@ def ForceConnectivity(segmentation):
 
 
 
-def DownsampleMapping(prefix, segmentation):
+def DownsampleMapping(prefix, segmentation, output_resolution=(80, 80, 80)):
     # everything needs to be long ints to work with c++
     assert (segmentation.dtype == np.int64)
 
     # output resolution for the low resolution segmentations
-    output_resolution=(80, 80, 80)
+    # output_resolution=(80, 80, 80)
 
     if not os.path.exists('skeletons'): os.mkdir('skeletons')
     if not os.path.isdir('skeletons/{}'.format(prefix)): os.mkdir('skeletons/{}'.format(prefix))

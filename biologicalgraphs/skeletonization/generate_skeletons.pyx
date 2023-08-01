@@ -22,9 +22,8 @@ cdef extern from 'cpp-generate_skeletons.h':
 
 
 # generate skeletons for this volume
-def TopologicalThinning(prefix, input_segmentation):
+def TopologicalThinning(prefix, input_segmentation, skeleton_resolution=(80, 80, 80)):
     # resolution for the skeleton
-    skeleton_resolution=(80, 80, 80)
     
     # everything needs to be long ints to work with c++
     assert (input_segmentation.dtype == np.int64)
@@ -47,9 +46,8 @@ def TopologicalThinning(prefix, input_segmentation):
 
 
 # find endpoint vectors for this skeleton
-def FindEndpointVectors(prefix):
+def FindEndpointVectors(prefix, skeleton_resolution=(80, 80, 80)):
     # resolution for the skeletons
-    skeleton_resolution=(80, 80, 80)
 
     # convert to numpy array for c++ call
     cdef np.ndarray[long, ndim=1, mode='c'] cpp_skeleton_resolution = np.ascontiguousarray(skeleton_resolution, dtype=ctypes.c_int64)

@@ -1,0 +1,6 @@
+# resolution in nm
+32x32x32
+# segmentation filename
+/braindat/lab/liusl/x-ray/baseline_seg_validation_resize_300.h5 main
+# grid size
+300x300x300

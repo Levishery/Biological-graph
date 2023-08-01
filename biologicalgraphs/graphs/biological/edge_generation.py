@@ -83,7 +83,7 @@ def BaselineGraph(prefix, segmentation, seg2gold_mapping):
 def TraverseIndividualEndpoint(segmentation, center, vector, resolution, max_label, maximum_distance):
     # the maximum degrees is a function of how the endpoint vectors are generated
     # the vectors have at best this resolution accuracy
-    maximum_radians = 0.3216
+    maximum_radians = 0.24
     # save computation time by calculating cos(theta) here
     cos_theta = math.cos(maximum_radians)
 
@@ -193,7 +193,7 @@ def TraverseIndividualEndpoint(segmentation, center, vector, resolution, max_lab
         # do not include background predictions
         if not neighbor_label: continue
         # make sure that the neighbor is locally adjacent and add to the set of edges
-        if not (neighbor_label, label) in adjacency_matrix and not (label, neighbor_label) in adjacency_matrix: continue
+        # if not (neighbor_label, label) in adjacency_matrix and not (label, neighbor_label) in adjacency_matrix: continue
         neighbors.append(neighbor_label)
 
         # return the mean as integer values and continue
@@ -206,7 +206,7 @@ def TraverseIndividualEndpoint(segmentation, center, vector, resolution, max_lab
 
 
 
-def EndpointTraversal(prefix, segmentation, maximum_distance):
+def EndpointTraversal(prefix, segmentation, maximum_distance, skeleton_resolution=(80, 80, 80)):
     # get the resolution for this data
     resolution = dataIO.Resolution(prefix)
 
@@ -214,7 +214,7 @@ def EndpointTraversal(prefix, segmentation, maximum_distance):
     max_label = np.amax(segmentation) + 1
 
     # read in all of the skeletons
-    skeletons = dataIO.ReadSkeletons(prefix)
+    skeletons = dataIO.ReadSkeletons(prefix, skeleton_resolution)
 
     # create a set of labels to consider
     edges = []
@@ -222,6 +222,8 @@ def EndpointTraversal(prefix, segmentation, maximum_distance):
     # go through every skeletons endpoints
     for skeleton in tqdm(skeletons):
         label = skeleton.label
+        if label == 35410:
+            print('here')
 
         for ie, endpoint in enumerate(skeleton.endpoints):
             # get the (x, y, z) location
@@ -242,11 +244,10 @@ def EndpointTraversal(prefix, segmentation, maximum_distance):
 
 
 
-def GenerateEdges_test(prefix, segmentation, subset, seg2gold_mapping=None):
+def GenerateEdges_test(prefix, segmentation, subset, seg2gold_mapping=None, width = (18, 52, 52), crop_box_margin = 5, dust=[], skeleton_resolution=(80, 80, 80)):
     # parameters from CVPR submission
-    network_radius = 600
-    maximum_distance = 500
-    width = (18, 52, 52)
+    network_radius = 2000
+    maximum_distance = 700
 
     # create the directory structure to save the features in
     # forward is needed for training and validation data that is cropped
@@ -260,9 +261,15 @@ def GenerateEdges_test(prefix, segmentation, subset, seg2gold_mapping=None):
 
     # crop the subset if it overlaps with testing data
     ((cropped_zmin, cropped_zmax), (cropped_ymin, cropped_ymax), (cropped_xmin, cropped_xmax)) = dataIO.CroppingBox(prefix)
+    cropped_zmin = cropped_zmin + crop_box_margin
+    cropped_ymin = cropped_ymin + crop_box_margin
+    cropped_xmin = cropped_xmin + crop_box_margin
+    cropped_zmax = cropped_zmax - crop_box_margin
+    cropped_ymax = cropped_ymax - crop_box_margin
+    cropped_xmax = cropped_xmax - crop_box_margin
 
     # call the function to actually generate the edges
-    edges = EndpointTraversal(prefix, segmentation, maximum_distance)
+    edges = EndpointTraversal(prefix, segmentation, maximum_distance, skeleton_resolution)
 
     # create list for all relevant examples
     positive_examples = []
@@ -279,9 +286,14 @@ def GenerateEdges_test(prefix, segmentation, subset, seg2gold_mapping=None):
         # if the center of the point falls outside the cropped box do not include it in training or validation
         forward = False
         # however, you allow it for forward inference
-        if (zpoint < cropped_zmin or cropped_zmax <= zpoint): forward = True
-        if (ypoint < cropped_ymin or cropped_ymax <= ypoint): forward = True
-        if (xpoint < cropped_xmin or cropped_xmax <= xpoint): forward = True
+        if (zpoint < cropped_zmin or cropped_zmax <= zpoint):
+            forward = True
+        if (ypoint < cropped_ymin or cropped_ymax <= ypoint):
+            forward = True
+        if (xpoint < cropped_xmin or cropped_xmax <= xpoint):
+            forward = True
+        # ignore when the segment is small
+        if ((label_two in dust) or (label_one in dust)): forward = True
 
         # see if these two segments belong to the same neuron
         if not seg2gold_mapping is None:
@@ -367,56 +379,57 @@ def GenerateEdges_test(prefix, segmentation, subset, seg2gold_mapping=None):
         dataIO.WriteH5File(unknown_examples_array, '{}/{}/unknowns/{}-examples.h5'.format(parent_directory, subset, prefix), 'main', compression=True)
         del unknown_examples_array
 
-    if len(forward_positive_examples):
-        # save the examples
-        forward_positive_filename = '{}/forward/positives/{}.examples'.format(parent_directory, prefix)
-        with open(forward_positive_filename, 'wb') as fd:
-            fd.write(struct.pack('q', len(forward_positive_examples)))
-            for example in forward_positive_examples:
-                fd.write(struct.pack('qqqqqq', example[0], example[1], example[2], example[3], example[4], example[5]))
-
-        # create new examples array to remove last element
-        examples = []
-        for example in forward_positive_examples:
-            examples.append(example[0:5])
-
-        forward_positive_examples_array = GenerateExamplesArray(prefix, segmentation, examples, width, network_radius)
-        dataIO.WriteH5File(forward_positive_examples_array, '{}/forward/positives/{}-examples.h5'.format(parent_directory, prefix), 'main', compression=True)
-        del forward_positive_examples_array
-
-    if len(forward_negative_examples):
-        # save the examples
-        forward_negative_filename = '{}/forward/negatives/{}.examples'.format(parent_directory, prefix)
-        with open(forward_negative_filename, 'wb') as fd:
-            fd.write(struct.pack('q', len(forward_negative_examples)))
-            for example in forward_negative_examples:
-                fd.write(struct.pack('qqqqqq', example[0], example[1], example[2], example[3], example[4], example[5]))
-
-        # create new examples array to remove last element
-        examples = []
-        for example in forward_negative_examples:
-            examples.append(example[0:5])
-
-        forward_negative_examples_array = GenerateExamplesArray(prefix, segmentation, examples, width, network_radius)
-        dataIO.WriteH5File(forward_negative_examples_array, '{}/forward/negatives/{}-examples.h5'.format(parent_directory, prefix), 'main', compression=True)
-        del forward_negative_examples_array
-
-    if len(forward_unknown_examples):
-        # save the examples
-        forward_unknown_filename = '{}/forward/unknowns/{}.examples'.format(parent_directory, prefix)
-        with open(forward_unknown_filename, 'wb') as fd:
-            fd.write(struct.pack('q', len(forward_unknown_examples)))
-            for example in forward_unknown_examples:
-                fd.write(struct.pack('qqqqqq', example[0], example[1], example[2], example[3], example[4], example[5]))
-
-        # create new examples array to remove last element
-        examples = []
-        for example in forward_unknown_examples:
-            examples.append(example[0:5])
-
-        forward_unknown_examples_array = GenerateExamplesArray(prefix, segmentation, examples, width, network_radius)
-        dataIO.WriteH5File(forward_unknown_examples_array, '{}/forward/unknowns/{}-examples.h5'.format(parent_directory, prefix), 'main', compression=True)
-        del forward_unknown_examples_array
+    # if len(forward_positive_examples):
+    #     # save the examples
+    #     forward_positive_filename = '{}/forward/positives/{}.examples'.format(parent_directory, prefix)
+    #     with open(forward_positive_filename, 'wb') as fd:
+    #         fd.write(struct.pack('q', len(forward_positive_examples)))
+    #         for example in forward_positive_examples:
+    #             fd.write(struct.pack('qqqqqq', example[0], example[1], example[2], example[3], example[4], example[5]))
+    #
+    #     # create new examples array to remove last element
+    #     examples = []
+    #     for example in forward_positive_examples:
+    #         examples.append(example[0:5])
+    #
+    #     forward_positive_examples_array = GenerateExamplesArray(prefix, segmentation, examples, width, network_radius)
+    #     dataIO.WriteH5File(forward_positive_examples_array, '{}/forward/positives/{}-examples.h5'.format(parent_directory, prefix), 'main', compression=True)
+    #     del forward_positive_examples_array
+    #
+    # if len(forward_negative_examples):
+    #     # save the examples
+    #     forward_negative_filename = '{}/forward/negatives/{}.examples'.format(parent_directory, prefix)
+    #     with open(forward_negative_filename, 'wb') as fd:
+    #         fd.write(struct.pack('q', len(forward_negative_examples)))
+    #         for example in forward_negative_examples:
+    #             fd.write(struct.pack('qqqqqq', example[0], example[1], example[2], example[3], example[4], example[5]))
+    #
+    #     # create new examples array to remove last element
+    #     examples = []
+    #     for example in forward_negative_examples:
+    #         examples.append(example[0:5])
+    #
+    #     forward_negative_examples_array = GenerateExamplesArray(prefix, segmentation, examples, width, network_radius)
+    #     dataIO.WriteH5File(forward_negative_examples_array, '{}/forward/negatives/{}-examples.h5'.format(parent_directory, prefix), 'main', compression=True)
+    #     del forward_negative_examples_array
+    #
+    # if len(forward_unknown_examples):
+    #     # save the examples
+    #     forward_unknown_filename = '{}/forward/unknowns/{}.examples'.format(parent_directory, prefix)
+    #     with open(forward_unknown_filename, 'wb') as fd:
+    #         fd.write(struct.pack('q', len(forward_unknown_examples)))
+    #         for example in forward_unknown_examples:
+    #             fd.write(struct.pack('qqqqqq', example[0], example[1], example[2], example[3], example[4], example[5]))
+    #
+    #     # create new examples array to remove last element
+    #     examples = []
+    #     for example in forward_unknown_examples:
+    #         examples.append(example[0:5])
+    #
+    #     forward_unknown_examples_array = GenerateExamplesArray(prefix, segmentation, examples, width, network_radius)
+    #     dataIO.WriteH5File(forward_unknown_examples_array, '{}/forward/unknowns/{}-examples.h5'.format(parent_directory, prefix), 'main', compression=True)
+    #     del forward_unknown_examples_array
+    return unknown_filename_h5
 
 
 

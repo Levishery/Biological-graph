@@ -106,7 +106,7 @@ static void FindEndpointVector(long index, double &vx, double &vy, double &vz)
     std::vector<long> path_from_endpoint = std::vector<long>();
     path_from_endpoint.push_back(index);
 
-    while (path_from_endpoint.size() < 4) {
+    while (path_from_endpoint.size() < 8) {
         short nneighbors = 0;
         long only_neighbor = -1;
         
