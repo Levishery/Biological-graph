@@ -83,7 +83,7 @@ def BaselineGraph(prefix, segmentation, seg2gold_mapping):
 def TraverseIndividualEndpoint(segmentation, center, vector, resolution, max_label, maximum_distance):
     # the maximum degrees is a function of how the endpoint vectors are generated
     # the vectors have at best this resolution accuracy
-    maximum_radians = 0.24
+    maximum_radians = 0.3216
     # save computation time by calculating cos(theta) here
     cos_theta = math.cos(maximum_radians)
 
@@ -222,8 +222,6 @@ def EndpointTraversal(prefix, segmentation, maximum_distance, skeleton_resolutio
     # go through every skeletons endpoints
     for skeleton in tqdm(skeletons):
         label = skeleton.label
-        if label == 35410:
-            print('here')
 
         for ie, endpoint in enumerate(skeleton.endpoints):
             # get the (x, y, z) location
@@ -244,10 +242,9 @@ def EndpointTraversal(prefix, segmentation, maximum_distance, skeleton_resolutio
 
 
 
-def GenerateEdges_test(prefix, segmentation, subset, seg2gold_mapping=None, width = (18, 52, 52), crop_box_margin = 5, dust=[], skeleton_resolution=(80, 80, 80)):
+def GenerateEdges_test(prefix, segmentation, subset, seg2gold_mapping=None, width = (18, 52, 52), crop_box_margin = 5, dust=[], skeleton_resolution=(80, 80, 80), maximum_distance = 500):
     # parameters from CVPR submission
-    network_radius = 2000
-    maximum_distance = 700
+    network_radius = 600
 
     # create the directory structure to save the features in
     # forward is needed for training and validation data that is cropped
@@ -269,6 +266,7 @@ def GenerateEdges_test(prefix, segmentation, subset, seg2gold_mapping=None, widt
     cropped_xmax = cropped_xmax - crop_box_margin
 
     # call the function to actually generate the edges
+    print('end point traversal')
     edges = EndpointTraversal(prefix, segmentation, maximum_distance, skeleton_resolution)
 
     # create list for all relevant examples
@@ -279,7 +277,8 @@ def GenerateEdges_test(prefix, segmentation, subset, seg2gold_mapping=None, widt
     forward_negative_examples = []
     forward_unknown_examples = []
 
-    for edge in edges:
+    print('edge record')
+    for edge in tqdm(edges):
         zpoint, ypoint, xpoint = (edge[IB_Z], edge[IB_Y], edge[IB_X])
         label_one, label_two = edge[3], edge[4]
 
@@ -375,6 +374,7 @@ def GenerateEdges_test(prefix, segmentation, subset, seg2gold_mapping=None, widt
         for example in unknown_examples:
             examples.append(example[0:5])
 
+        print('generate input for edgenetwork')
         unknown_examples_array = GenerateExamplesArray(prefix, segmentation, examples, width, network_radius)
         dataIO.WriteH5File(unknown_examples_array, '{}/{}/unknowns/{}-examples.h5'.format(parent_directory, subset, prefix), 'main', compression=True)
         del unknown_examples_array
