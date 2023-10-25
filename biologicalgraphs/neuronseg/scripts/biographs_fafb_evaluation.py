@@ -8,7 +8,6 @@ from biologicalgraphs.graphs.biological import edge_generation
 # from biologicalgraphs.cnns.biological import edges
 from biologicalgraphs.transforms import seg2seg
 from biologicalgraphs.skeletonization import generate_skeletons
-from biologicalgraphs.algorithms import lifted_multicut
 import pandas as pd
 import pickle
 import math
@@ -27,6 +26,7 @@ def get_args():
     parser = argparse.ArgumentParser(description="Biologicla parameters.")
     parser.add_argument('--dust_thresh', type=int, default=1500)
     parser.add_argument('--dist', type=int, default=500)
+    parser.add_argument('--radius', type=float, default=0.3216)
     args = parser.parse_args()
     return args
 
@@ -139,6 +139,66 @@ def stat_biological_recall(potential_path, block_paths, cord_start, cord_end):
     print('total positive samples: ', total_positives)
 
 
+def get_recall_record(potential_path, block_paths, cord_start, cord_end, segment_list):
+    edges = pd.read_csv(potential_path, header=None)
+    csv_path = potential_path.replace('.csv', '_hit_record.csv')
+    csv_seleted_potential_path = potential_path.replace('.csv', '_potential_record.csv')
+    seg_id_records = []
+    total_positives = 0
+    hit = 0
+    no_dust_total = 0
+    total_candidate_num = 0
+    for block_path in block_paths:
+        if os.path.exists(block_path):
+            print('block %s'%block_path)
+            samples = pd.read_csv(block_path, header=None)
+            positives_indexes = np.where(samples[5] > 1)
+            query = list(samples[0][list(positives_indexes[0])])
+            pos = list(samples[1][list(positives_indexes[0])])
+            cords = list(samples[2][list(positives_indexes[0])])
+
+            for i in tqdm(range(len(query))):
+                cord = np.array(cords[i][1:-1].split(), dtype=np.float32)
+
+                if is_inside_bounding_box(cord, (cord_start, cord_end)):
+                    hit_flag = 0
+                    total_positives = total_positives + 1
+
+                    potentials = list(edges[1][np.where(edges[0] == query[i])[0]])
+                    if query[i] not in seg_id_records:
+                        seg_id_records.append(query[i])
+                        total_candidate_num += len(potentials)
+                        row = pd.DataFrame([{'query': int(query[i]), 'potentials': potentials}])
+                        row.to_csv(csv_seleted_potential_path, mode='a', header=False, index=False)
+                    total_candidate_num += len(potentials)
+                    if pos[i] in potentials:
+                        hit = hit + 1
+                        hit_flag = 1
+
+                    potentials = list(edges[1][np.where(edges[0] == pos[i])[0]])
+                    if pos[i] not in seg_id_records:
+                        seg_id_records.append(pos[i])
+                        total_candidate_num += len(potentials)
+                        row = pd.DataFrame([{'query': int(pos[i]), 'potentials': potentials}])
+                        row.to_csv(csv_seleted_potential_path, mode='a', header=False, index=False)
+                    if query[i] in potentials:
+                        if hit_flag == 0:
+                            hit = hit + 1
+                            hit_flag = 1
+
+                    no_dust = int(pos[i] in segment_list and query[i] in segment_list)
+                    no_dust_total = no_dust_total + no_dust
+                    row = pd.DataFrame(
+                        [{'node0_segid': int(pos[i]), 'node1_segid': int(query[i]), 'hit': hit_flag, 'no_dust': no_dust}])
+                    row.to_csv(csv_path, mode='a', header=False, index=False)
+
+    print('bilogical edge recall: ', hit / total_positives)
+    print('no dust upper edge recall: ', no_dust_total / total_positives)
+    print('total positive samples: ', total_positives)
+    print('total candidates: ', total_candidate_num)
+    pickle.dumps([cord_start, cord_end])
+
+
 def divide_bounding_box(bbox):
     # Calculate midpoints along each dimension
     mid_point = (bbox[0] + bbox[1]) / 2
@@ -209,16 +269,17 @@ for box in boxes:
     cord_mid_box1 = (box[0][0] + box[1][0]) / 2
     box_s = []
     box_s.append([box[0], np.array([cord_mid_box1, box[1][1], box[1][2]])])
-    box_s.append([np.array([cord_mid_box1, box[1][1], box[1][2]]), box[1]])
+    box_s.append([np.array([cord_mid_box1, box[0][1], box[0][2]]), box[1]])
     for small_box in box_s:
-        cord_start_box2 = small_box[0]
-        cord_end_box2 = small_box[1]
+        # overlap at margins
+        cord_start_box2 = small_box[0] - np.array([20*4, 20*4, 8])
+        cord_end_box2 = small_box[1] + np.array([20*4, 20*4, 8])
         volume_ffn1 = vol_ffn1[cord_start_box2[0] / 4:cord_end_box2[0] / 4 + 1,
                       cord_start_box2[1] / 4:cord_end_box2[1] / 4 + 1, cord_start_box2[2]:cord_end_box2[2] + 1].astype(np.uint64)
         print(volume_ffn1.shape)
         volume_ffn1 = np.asarray(volume_ffn1)[:, :, :, 0]
 
-        prefix_woindex = 'fafb_dust%s_dis%s_cc3d_'%(str(args.dust_thresh), str(args.dist))
+        prefix_woindex = 'get_baseline_dust%s_dis%s_rad%s_'%(str(args.dust_thresh), str(args.dist), str(args.radius))
         prefix = prefix_woindex + str(index)
         print(prefix)
         grid_size = '%sx%sx%s'%(str(volume_ffn1.shape[0]), str(volume_ffn1.shape[1]), str(volume_ffn1.shape[2]))
@@ -242,6 +303,7 @@ for box in boxes:
         dataIO.WriteH5File(mapping['original'],
                            '/braindat/lab/liusl/flywire/biologicalgraphs/biologicalgraphs/neuronseg/features/biological/' + prefix + 'mapping.h5',
                            'original', compression=True)
+        mapping = mapping['original']
         segmentation = segmentation.astype(np.int64)
 
         # # and running topological thinnings
@@ -255,12 +317,12 @@ for box in boxes:
         # # run edge generation function
         # edge_generation.GenerateEdges_test(prefix, segmentation, subset)
         # unknown_filename_h5 = edge_generation.GenerateEdges_test(prefix, segmentation, subset, dust=dust)
-        unknown_filename_h5 = edge_generation.GenerateEdges_test(prefix, segmentation, subset)
-        index += index
+        unknown_filename_h5 = edge_generation.GenerateEdges_test(prefix, segmentation, subset, maximum_distance=args.dist, maximum_radians=args.radius)
+        index += 1
         print('write candidates')
         potential_path = get_candidate_csv(
             '/braindat/lab/liusl/flywire/biologicalgraphs/biologicalgraphs/neuronseg/features/biological/' + prefix + 'mapping.h5',
-            unknown_filename_h5, csv_path='/braindat/lab/liusl/flywire/biologicalgraphs/biologicalgraphs/neuronseg/features/biological/'+ prefix_woindex + '.csv', start_cord=cord_start_box2)
+            unknown_filename_h5, csv_path='/braindat/lab/liusl/flywire/biologicalgraphs/biologicalgraphs/neuronseg/features/biological/evaluate_fafb/'+ prefix + '.csv', start_cord=cord_start_box2)
         # potential_path = '/braindat/lab/liusl/flywire/biologicalgraphs/biologicalgraphs/neuronseg/features/biological/fafb_dust3000_small_test_.csv'
         block_paths = get_block_paths(cord_start_box2, cord_end_box2)
-        stat_biological_recall(potential_path, block_paths, cord_start_box2, cord_end_box2)
+        get_recall_record(potential_path, block_paths, cord_start_box2, cord_end_box2, mapping)
