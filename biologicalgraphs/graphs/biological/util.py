@@ -167,9 +167,9 @@ def GenerateAllExamplesArray(prefix, segmentation, examples, width, gold, image)
     nexamples = len(examples)
 
     # create the empty array of examples
-    examples_array = np.zeros((nexamples, 2 * zradius + 1, 2 * yradius + 1, 2 * xradius + 1), dtype=np.uint8)
-    examples_gt_array = np.zeros((nexamples, 2 * zradius + 1, 2 * yradius + 1, 2 * xradius + 1), dtype=np.uint8)
-    examples_img_array = np.zeros((nexamples, 2 * zradius + 1, 2 * yradius + 1, 2 * xradius + 1), dtype=np.uint8)
+    examples_array = np.zeros((nexamples, 2 * zradius + 1, 2 * yradius + 1, 2 * xradius + 1), dtype=np.int)
+    examples_gt_array = np.zeros((nexamples, 2 * zradius + 1, 2 * yradius + 1, 2 * xradius + 1), dtype=np.int)
+    examples_img_array = np.zeros((nexamples, 2 * zradius + 1, 2 * yradius + 1, 2 * xradius + 1), dtype=np.int)
 
     for index, (zpoint, ypoint, xpoint, label_one, label_two) in enumerate(examples):
         # need to make sure that bounding box does not leave location so sizes are correct

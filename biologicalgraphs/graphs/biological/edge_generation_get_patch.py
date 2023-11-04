@@ -1,8 +1,10 @@
 # coding=utf-8
 import math
+import os
 import time
 import random
 import struct
+import pandas as pd
 
 import numpy as np
 from numba import jit
@@ -314,6 +316,9 @@ def GenerateEdges(prefix, segmentation, subset, seg2gold_mapping, gold, image):
     print ('No. Unknown Edges: {}'.format(len(unknown_examples)))
 
     parent_directory = '/braindat/lab/liusl/flywire/biologicalgraphs/biologicalgraphs/neuronseg/features/biological/edges-{}nm-{}x{}x{}'.format(network_radius, width[IB_Z], width[IB_Y], width[IB_X])
+    csv_filename = '{}/{}/{}.csv'.format(parent_directory, subset, prefix)
+    targets = []
+    examples = []
 
     if len(positive_examples):
         # save the examples
@@ -324,9 +329,9 @@ def GenerateEdges(prefix, segmentation, subset, seg2gold_mapping, gold, image):
                 fd.write(struct.pack('qqqqqq', example[0], example[1], example[2], example[3], example[4], example[5]))
 
         # create new examples array to remove last element
-        examples = []
         for example in positive_examples:
-            examples.append(example[0:5])
+            examples.append(list(example[0:5]))
+            targets.append(1)
 
         positive_examples_array, positive_examples_gt_array, positive_examples_img_array = GenerateAllExamplesArray(prefix, segmentation, examples, width, gold, image)
         dataIO.WriteH5File(positive_examples_array, '{}/{}/positives/{}-examples.h5'.format(parent_directory, subset, prefix), 'main', compression=True)
@@ -339,3 +344,42 @@ def GenerateEdges(prefix, segmentation, subset, seg2gold_mapping, gold, image):
         del positive_examples_array
         del positive_examples_gt_array
         del positive_examples_img_array
+
+    if len(negative_examples):
+        # save the examples
+        negative_filename = '{}/{}/negatives/{}.examples'.format(parent_directory, subset, prefix)
+        with open(negative_filename, 'wb') as fd:
+            fd.write(struct.pack('q', len(negative_examples)))
+            for ie, example in enumerate(negative_examples):
+                fd.write(struct.pack('qqqqqq', example[0], example[1], example[2], example[3], example[4], example[5]))
+
+        for example in negative_examples:
+            examples.append(list(example[0:5]))
+            targets.append(0)
+
+        negative_examples_array, negative_examples_gt_array, negative_examples_img_array = GenerateAllExamplesArray(prefix, segmentation, examples, width, gold, image)
+        dataIO.WriteH5File(negative_examples_array, '{}/{}/negatives/{}-examples.h5'.format(parent_directory, subset, prefix), 'main', compression=True)
+        dataIO.WriteH5File(negative_examples_gt_array,
+                           '{}/{}/negatives/{}-examples-gt.h5'.format(parent_directory, subset, prefix), 'main',
+                           compression=True)
+        dataIO.WriteH5File(negative_examples_img_array,
+                           '{}/{}/negatives/{}-examples-img.h5'.format(parent_directory, subset, prefix), 'main',
+                           compression=True)
+        del negative_examples_array
+        del negative_examples_gt_array
+        del negative_examples_img_array
+
+    df = pd.DataFrame(
+        columns=['label_one', 'label_two', 'probabilities', 'predictions', 'target', 'xmean', 'ymean', 'zmean', 'ie',
+                 'iex', 'iey', 'iez', 'ie_vector'])
+    vertex_ones = list(np.array(examples)[:,3])
+    vertex_twos = list(np.array(examples)[:,4])
+    df['label_one'] = vertex_ones
+    df['label_two'] = vertex_twos
+    df['probabilities'] = len(vertex_ones)*[0]
+    df['predictions'] = len(vertex_ones)*[0]
+    df['target'] = targets
+    df['xmean'] = list(np.array(examples)[:, IB_X])
+    df['ymean'] = list(np.array(examples)[:, IB_Y])
+    df['zmean'] = list(np.array(examples)[:, IB_Z])
+    df.to_csv(os.path.join(parent_directory, csv_filename))
