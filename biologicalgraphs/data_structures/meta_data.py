@@ -12,6 +12,7 @@ class MetaData:
         self.affinity_filename = None
         self.gold_filename = None
         self.segment_filename = None
+        self.image_filename = None
         self.crop_xmin = None
         self.crop_xmax = None
         self.crop_ymin = None
@@ -40,6 +41,8 @@ class MetaData:
                     self.gold_filename = value
                 elif comment == '# segmentation filename':
                     self.segment_filename = value
+                elif comment == '# image filename':
+                    self.image_filename = value
                 elif comment == '# grid size':
                     # read the grid size in x, y, z order
                     samples = value.split('x')
@@ -76,6 +79,9 @@ class MetaData:
             return 'segments/{}_segment.h5'.format(self.prefix), 'main'
         else:
             return self.segment_filename.split()[0], self.segment_filename.split()[1]
+
+    def ImageFilename(self):
+        return self.image_filename.split()[0], self.segment_filename.split()[1]
 
     def AffinityFilename(self):
         if self.affinity_filename == None:

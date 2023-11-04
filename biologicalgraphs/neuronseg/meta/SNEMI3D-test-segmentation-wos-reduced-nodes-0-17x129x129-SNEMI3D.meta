@@ -1,0 +1,10 @@
+# resolution in nm
+12.0x12.0x30.0
+# gold filename
+golds/SNEMI3D-test-gold.h5 main
+# segmentation filename
+segmentations/SNEMI3D-test-segmentation-wos-reduced-nodes-400nm-3x20x60x60-SNEMI3D.h5 main
+# image filename
+images/SNEMI3D-test-raw.h5 main
+# grid size
+512x512x100

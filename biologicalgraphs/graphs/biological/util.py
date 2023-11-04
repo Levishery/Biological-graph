@@ -22,17 +22,17 @@ def FindSmallSegments(segmentation, threshold):
     for iz in range(zres):
         for iy in range(yres):
             for ix in range(xres):
-                counts[segmentation[iz,iy,ix]] += 1
+                counts[segmentation[iz, iy, ix]] += 1
 
     for label in range(max_label):
         if not counts[label]: continue
 
-        if (counts[label] < threshold): small_segments.add(label)
-        else: large_segments.add(label)
+        if (counts[label] < threshold):
+            small_segments.add(label)
+        else:
+            large_segments.add(label)
 
     return small_segments, large_segments
-
-
 
 
 @jit(nopython=True)
@@ -51,14 +51,12 @@ def ScaleFeature(segment, width, label_one, label_two):
                 iv = int(float(yres) / float(width[IB_Y]) * iy)
                 iu = int(float(xres) / float(width[IB_X]) * ix)
 
-                if segment[iw,iv,iu] == label_one:
-                    example[iz,iy,ix] = 1
-                elif segment[iw,iv,iu] == label_two:
-                    example[iz,iy,ix] = 2
+                if segment[iw, iv, iu] == label_one:
+                    example[iz, iy, ix] = 1
+                elif segment[iw, iv, iu] == label_two:
+                    example[iz, iy, ix] = 2
 
     return example
-
-
 
 
 @jit(nopython=True)
@@ -68,11 +66,10 @@ def ExtractExample(segment, label_one, label_two):
     for iz in range(zres):
         for iy in range(yres):
             for ix in range(xres):
-                if (not segment[iz,iy,ix] == label_one) and (not segment[iz,iy,ix] == label_two):
-                    segment[iz,iy,ix] = 0
+                if (not segment[iz, iy, ix] == label_one) and (not segment[iz, iy, ix] == label_two):
+                    segment[iz, iy, ix] = 0
 
     return segment
-
 
 
 # simple function to create directory structure for all of the features
@@ -83,7 +80,8 @@ def CreateDirectoryStructure(width, network_radius, subsets, feature):
         os.mkdir('features/biological')
 
     # make sure directory structure exists
-    directory = 'features/biological/{}-{}nm-{}x{}x{}'.format(feature, network_radius, width[IB_Z], width[IB_Y], width[IB_X])
+    directory = 'features/biological/{}-{}nm-{}x{}x{}'.format(feature, network_radius, width[IB_Z], width[IB_Y],
+                                                              width[IB_X])
     if not os.path.exists(directory):
         os.mkdir(directory)
 
@@ -99,11 +97,11 @@ def CreateDirectoryStructure(width, network_radius, subsets, feature):
                 os.mkdir('{}/{}'.format(sub_directory, labeling))
 
 
-
 def GenerateExamplesArray(prefix, segmentation, examples, width, network_radius):
     # get the radius along each dimensions in terms of voxels
     resolution = dataIO.Resolution(prefix)
-    (zradius, yradius, xradius) = (int(network_radius / resolution[IB_Z]), int(network_radius / resolution[IB_Y]), int(network_radius / resolution[IB_X]))
+    (zradius, yradius, xradius) = (int(network_radius / resolution[IB_Z]), int(network_radius / resolution[IB_Y]),
+                                   int(network_radius / resolution[IB_X]))
     zres, yres, xres = segmentation.shape
 
     # find the number of examples
@@ -125,25 +123,104 @@ def GenerateExamplesArray(prefix, segmentation, examples, width, network_radius)
         example = np.zeros((2 * zradius + 1, 2 * yradius + 1, 2 * xradius + 1), dtype=np.int32)
 
         # get the valid location around this point
-        segment = ExtractExample(segmentation[zmin:zmax,ymin:ymax,xmin:xmax].copy(), label_one, label_two)
+        segment = ExtractExample(segmentation[zmin:zmax, ymin:ymax, xmin:xmax].copy(), label_one, label_two)
 
         if example.shape == segment.shape:
             example = segment
         else:
-            if zmin == 0: zstart = zradius - zpoint
-            else: zstart = 0
+            if zmin == 0:
+                zstart = zradius - zpoint
+            else:
+                zstart = 0
 
-            if ymin == 0: ystart = yradius - ypoint
-            else: ystart = 0
+            if ymin == 0:
+                ystart = yradius - ypoint
+            else:
+                ystart = 0
 
-            if xmin == 0: xstart = xradius - xpoint
-            else: xstart = 0
+            if xmin == 0:
+                xstart = xradius - xpoint
+            else:
+                xstart = 0
 
             # the second and third channels are one if the corresponding voxels belong to the individual segments
-            example[zstart:zstart+segment.shape[IB_Z],ystart:ystart+segment.shape[IB_Y],xstart:xstart+segment.shape[IB_X]] = segment
+            example[zstart:zstart + segment.shape[IB_Z], ystart:ystart + segment.shape[IB_Y],
+            xstart:xstart + segment.shape[IB_X]] = segment
 
         # scale the feature to the appropriate width
-        examples_array[index,:,:,:] = ScaleFeature(example, width, label_one, label_two)
+        examples_array[index, :, :, :] = ScaleFeature(example, width, label_one, label_two)
 
     # return the examples
     return examples_array
+
+
+def GenerateAllExamplesArray(prefix, segmentation, examples, width, gold, image):
+    # get the radius along each dimensions in terms of voxels
+    resolution = dataIO.Resolution(prefix)
+
+    # 500/4  500/4 500/40 ~= 125 125 12.5    so resize to (128,128,16) is reasonable
+
+    (zradius, yradius, xradius) = width
+    zres, yres, xres = segmentation.shape
+
+    # find the number of examples
+    nexamples = len(examples)
+
+    # create the empty array of examples
+    examples_array = np.zeros((nexamples, 2 * zradius + 1, 2 * yradius + 1, 2 * xradius + 1), dtype=np.uint8)
+    examples_gt_array = np.zeros((nexamples, 2 * zradius + 1, 2 * yradius + 1, 2 * xradius + 1), dtype=np.uint8)
+    examples_img_array = np.zeros((nexamples, 2 * zradius + 1, 2 * yradius + 1, 2 * xradius + 1), dtype=np.uint8)
+
+    for index, (zpoint, ypoint, xpoint, label_one, label_two) in enumerate(examples):
+        # need to make sure that bounding box does not leave location so sizes are correct
+        zmin = max(0, zpoint - zradius)
+        ymin = max(0, ypoint - yradius)
+        xmin = max(0, xpoint - xradius)
+        zmax = min(zres, zpoint + zradius + 1)
+        ymax = min(yres, ypoint + yradius + 1)
+        xmax = min(xres, xpoint + xradius + 1)
+
+        # create the empty example file with three channels corresponding to the value of segment
+        example = np.zeros((2 * zradius + 1, 2 * yradius + 1, 2 * xradius + 1), dtype=np.int32)
+        example_gt = np.zeros((2 * zradius + 1, 2 * yradius + 1, 2 * xradius + 1), dtype=np.int32)
+        example_img = np.zeros((2 * zradius + 1, 2 * yradius + 1, 2 * xradius + 1), dtype=np.int32)
+
+        # get the valid location around this point
+        segment_patch, gold_patch, img_patch = segmentation[zmin:zmax, ymin:ymax, xmin:xmax].copy(), \
+                                               gold[zmin:zmax, ymin:ymax,xmin:xmax].copy(), \
+                                               image[zmin:zmax, ymin:ymax, xmin:xmax].copy()
+
+        if example.shape == segment_patch.shape:
+            example = segment_patch
+            example_gt = gold_patch
+            example_img = img_patch
+        else:
+            if zmin == 0:
+                zstart = zradius - zpoint
+            else:
+                zstart = 0
+
+            if ymin == 0:
+                ystart = yradius - ypoint
+            else:
+                ystart = 0
+
+            if xmin == 0:
+                xstart = xradius - xpoint
+            else:
+                xstart = 0
+
+            # the second and third channels are one if the corresponding voxels belong to the individual segments
+            example[zstart:zstart + segment_patch.shape[IB_Z], ystart:ystart + segment_patch.shape[IB_Y],
+            xstart:xstart + segment_patch.shape[IB_X]] = segment_patch
+            example_gt[zstart:zstart + gold_patch.shape[IB_Z], ystart:ystart + gold_patch.shape[IB_Y],
+            xstart:xstart + gold_patch.shape[IB_X]] = gold_patch
+            example_img[zstart:zstart + gold_patch.shape[IB_Z], ystart:ystart + gold_patch.shape[IB_Y],
+            xstart:xstart + gold_patch.shape[IB_X]] = img_patch
+        # scale the feature to the appropriate width
+        examples_array[index, :, :, :] = example
+        examples_gt_array[index, :, :, :] = example_gt
+        examples_img_array[index, :, :, :] = example_img
+
+    # return the examples
+    return examples_array, examples_gt_array, examples_img_array
