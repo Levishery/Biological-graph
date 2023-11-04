@@ -7,4 +7,4 @@ segmentations/SNEMI3D-train-segmentation-wos-reduced-nodes-400nm-3x20x60x60-SNEM
 # image filename
 images/SNEMI3D-train-raw.h5 main
 # grid size
-1024x1024x100
+512x512x100
