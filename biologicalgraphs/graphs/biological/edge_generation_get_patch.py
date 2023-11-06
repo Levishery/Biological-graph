@@ -319,6 +319,8 @@ def GenerateEdges(prefix, segmentation, subset, seg2gold_mapping, gold, image):
     csv_filename = '{}/{}/{}.csv'.format(parent_directory, subset, prefix)
     targets = []
     examples = []
+    examples_positive = []
+    examples_negative = []
 
     if len(positive_examples):
         # save the examples
@@ -331,9 +333,10 @@ def GenerateEdges(prefix, segmentation, subset, seg2gold_mapping, gold, image):
         # create new examples array to remove last element
         for example in positive_examples:
             examples.append(list(example[0:5]))
+            examples_positive.append(list(example[0:5]))
             targets.append(1)
 
-        positive_examples_array, positive_examples_gt_array, positive_examples_img_array = GenerateAllExamplesArray(prefix, segmentation, examples, width, gold, image)
+        positive_examples_array, positive_examples_gt_array, positive_examples_img_array = GenerateAllExamplesArray(prefix, segmentation, examples_positive, width, gold, image)
         dataIO.WriteH5File(positive_examples_array, '{}/{}/positives/{}-examples.h5'.format(parent_directory, subset, prefix), 'main', compression=True)
         dataIO.WriteH5File(positive_examples_gt_array,
                            '{}/{}/positives/{}-examples-gt.h5'.format(parent_directory, subset, prefix), 'main',
@@ -355,9 +358,10 @@ def GenerateEdges(prefix, segmentation, subset, seg2gold_mapping, gold, image):
 
         for example in negative_examples:
             examples.append(list(example[0:5]))
+            examples_negative.append(list(example[0:5]))
             targets.append(0)
 
-        negative_examples_array, negative_examples_gt_array, negative_examples_img_array = GenerateAllExamplesArray(prefix, segmentation, examples, width, gold, image)
+        negative_examples_array, negative_examples_gt_array, negative_examples_img_array = GenerateAllExamplesArray(prefix, segmentation, examples_negative, width, gold, image)
         dataIO.WriteH5File(negative_examples_array, '{}/{}/negatives/{}-examples.h5'.format(parent_directory, subset, prefix), 'main', compression=True)
         dataIO.WriteH5File(negative_examples_gt_array,
                            '{}/{}/negatives/{}-examples-gt.h5'.format(parent_directory, subset, prefix), 'main',
